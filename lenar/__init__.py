@@ -1,5 +1,6 @@
 from logging.config import dictConfig
 from flask import Flask
+from pymongo import MongoClient
 from .views.users import users
 
 
@@ -20,4 +21,5 @@ dictConfig({
 })
 
 app = Flask(__name__)
+app.config['mongo_client'] = MongoClient('localhost', 27017)
 app.register_blueprint(users)
