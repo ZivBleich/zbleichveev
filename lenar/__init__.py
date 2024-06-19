@@ -1,8 +1,14 @@
+import atexit
 from logging.config import dictConfig
 from flask import Flask
 from pymongo import MongoClient
-from .views.users import users
+from .views.users import users_view
+from .storage import STORAGE_CONNECTOR_KEY
+from .storage.mongo_storage_connector import MongoStorageConnector
 
+DB_NAME = 'lenar'
+MONGO_SERVER = 'localhost'
+MONGO_PORT = 27017
 
 dictConfig({
     'version': 1,
@@ -21,5 +27,12 @@ dictConfig({
 })
 
 app = Flask(__name__)
-app.config['mongo_client'] = MongoClient('localhost', 27017)
-app.register_blueprint(users)
+app.config[STORAGE_CONNECTOR_KEY] = MongoStorageConnector(MongoClient(MONGO_SERVER, MONGO_PORT), DB_NAME)
+
+
+def close_connection():
+    app.config[STORAGE_CONNECTOR_KEY].close()
+
+
+atexit.register(close_connection)
+app.register_blueprint(users_view)
