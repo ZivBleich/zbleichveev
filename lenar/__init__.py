@@ -1,8 +1,10 @@
 import atexit
 from logging.config import dictConfig
 from flask import Flask
+from flask_jwt_extended import JWTManager
 from pymongo import MongoClient
 from .views.users import users_view
+from .views.auth import auth_view
 from .storage import STORAGE_CONNECTOR_KEY
 from .storage.mongo_storage_connector import MongoStorageConnector
 
@@ -27,6 +29,12 @@ dictConfig({
 })
 
 app = Flask(__name__)
+
+# jwt
+app.config['JWT_SECRET_KEY'] = 'verysecret'
+jwt = JWTManager(app)
+
+# mongodb
 app.config[STORAGE_CONNECTOR_KEY] = MongoStorageConnector(MongoClient(MONGO_SERVER, MONGO_PORT), DB_NAME)
 
 
@@ -36,3 +44,4 @@ def close_connection():
 
 atexit.register(close_connection)
 app.register_blueprint(users_view)
+app.register_blueprint(auth_view)

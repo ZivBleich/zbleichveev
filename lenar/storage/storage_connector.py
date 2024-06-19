@@ -28,3 +28,7 @@ class StorageConnector(ABC):
     def delete_one(self, *args, **kwargs):
         pass
 
+    @abstractmethod
+    def matches(self, *args, **kwargs):
+        pass
+

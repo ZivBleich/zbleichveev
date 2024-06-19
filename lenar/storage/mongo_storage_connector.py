@@ -19,6 +19,8 @@ def _mongo_id_str_converter(func):
             for d in documents_dicts:
                 if "_id" in d:
                     d["_id"] = str(d.pop("_id"))
+                if 'password' in d:
+                    d['password'] = '*' * 8
             return result
 
         except InvalidId:  # raised when document_id in ObjectId(document_id) is not a valid document id value.
@@ -39,8 +41,8 @@ class MongoStorageConnector(StorageConnector):
     def find(self, collection_name: str) -> List[dict]:
         return list(self.db[collection_name].find(limit=100))
 
-    def _find_one(self, collection_name: str, document_id: str) -> dict:
-        user = self.db[collection_name].find_one(ObjectId(document_id))
+    def find_one(self, collection_name: str, document) -> dict:
+        user = self.db[collection_name].find_one(document)
         if user is None:
             raise NotFound()
         return user
@@ -53,7 +55,10 @@ class MongoStorageConnector(StorageConnector):
 
     @_mongo_id_str_converter
     def update_one(self, collection_name: str, document_id: str, document: dict) -> dict:
-        stored_document = self._find_one(collection_name, document_id)
+        if 'password' in document and not document['password']:
+            document.pop('password')
+            
+        stored_document = self.find_one(collection_name, {"_id": ObjectId(document_id)})
         # filter fields according to model
         stored_document.update(document)
         self.db[collection_name].update_one({"_id": ObjectId(document_id)}, {"$set": stored_document})
@@ -64,3 +69,9 @@ class MongoStorageConnector(StorageConnector):
         delete_result = self.db[collection_name].delete_one({"_id": ObjectId(document_id)})
         if delete_result.deleted_count != 1:
             raise NotFound()
+
+    @_mongo_id_str_converter
+    def matches(self, collection_name: str, document: dict) -> bool:
+        if '_id' in document:
+            document['_id'] = ObjectId(document['_id'])
+        return self.db[collection_name].find_one(document) is not None
