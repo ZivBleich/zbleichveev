@@ -2,7 +2,7 @@ import logging
 import json
 from flask import Blueprint, jsonify, current_app, request, Response
 from storage import STORAGE_CONNECTOR_KEY
-from typing import List
+from storage.exceptions import NotFound
 from models.user import User
 from pydantic import ValidationError
 
@@ -22,29 +22,56 @@ def ping():
 @users_view.route(f'{BASE_URL}', methods=['GET', 'POST'])
 def users():
     if request.method == 'GET':
-        return get_users()
+        return _get_users()
     else:
         try:
-            return post_users()
+            return _post_users()
         except ValidationError as e:
             return Response(str(e), 400)
 
 
-def sanitize_id(documents: List[dict]):
-    for d in documents:
-        d['_id'] = str(d['_id'])
-
-
-def get_users():
+def _get_users():
     logging.info("got users endpoint GET request")
     users_list = current_app.config[STORAGE_CONNECTOR_KEY].find(COLLECTION_NAME)
-    sanitize_id(users_list)
     return jsonify({"message": users_list})
 
 
-def post_users():
+def _post_users():
     logging.info("got users endpoint POST request")
     user = User(**json.loads(request.data))
     inserted_user = current_app.config[STORAGE_CONNECTOR_KEY].insert_one(COLLECTION_NAME, user.model_dump())
-    sanitize_id([inserted_user])
     return jsonify({"message": inserted_user})
+
+
+@users_view.route(f'{BASE_URL}/<user_id>', methods=['PATCH'])
+def update_user(user_id: str):
+    logging.info("got users endpoint PATCH request")
+
+    try:
+        return _update_user(user_id)
+    except ValidationError as e:
+        return Response(str(e), 400)
+    except NotFound as e:
+        return Response(str(e), 404)
+
+
+def _update_user(user_id: str):
+    user = User(**json.loads(request.data))
+    updated_user = current_app.config[STORAGE_CONNECTOR_KEY].update_one(COLLECTION_NAME, user_id, user.model_dump())
+    return jsonify({"message": updated_user})
+
+
+@users_view.route(f'{BASE_URL}/<user_id>', methods=['DELETE'])
+def delete_user(user_id: str):
+    logging.info("got users endpoint DELETE request")
+    try:
+        return _delete_user(user_id)
+    except ValidationError as e:
+        return Response(str(e), 400)
+    except NotFound as e:
+        return Response(str(e), 404)
+
+
+def _delete_user(user_id: str):
+    current_app.config[STORAGE_CONNECTOR_KEY].delete_one(COLLECTION_NAME, user_id)
+    return jsonify({"message": "SUCCESS"})

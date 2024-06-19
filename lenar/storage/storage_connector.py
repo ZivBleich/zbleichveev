@@ -19,3 +19,12 @@ class StorageConnector(ABC):
     @abstractmethod
     def insert_one(self, *args, **kwargs):
         pass
+
+    @abstractmethod
+    def update_one(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def delete_one(self, *args, **kwargs):
+        pass
+
